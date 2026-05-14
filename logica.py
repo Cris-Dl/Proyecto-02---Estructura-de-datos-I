@@ -1,6 +1,5 @@
 import flet as ft
 import flet.canvas as cv
-
 class Nodo:
     def __init__(self, valor):
         self.valor = valor
@@ -33,6 +32,42 @@ class ArbolBinario:
             else:
                 cola.append(nodo.derecho)
 
+    def eliminar(self, valor):
+        if not self.raiz: return
+        if self.raiz.valor == valor and not self.raiz.izquierdo and not self.raiz.derecho:
+            self.raiz = None
+            return
+
+        nodo_a_eliminar = None
+        temp = None
+        cola = [self.raiz]
+        while cola:
+            temp = cola.pop(0)
+            if temp.valor == valor: nodo_a_eliminar = temp
+            if temp.izquierdo: cola.append(temp.izquierdo)
+            if temp.derecho: cola.append(temp.derecho)
+
+        if nodo_a_eliminar:
+            ultimo_valor = temp.valor
+            self._eliminar_ultimo(temp)
+            nodo_a_eliminar.valor = ultimo_valor
+
+    def _eliminar_ultimo(self, ultimo_nodo):
+        cola = [self.raiz]
+        while cola:
+            nodo = cola.pop(0)
+            if nodo is ultimo_nodo: return
+            if nodo.derecho:
+                if nodo.derecho is ultimo_nodo:
+                    nodo.derecho = None
+                    return
+                cola.append(nodo.derecho)
+            if nodo.izquierdo:
+                if nodo.izquierdo is ultimo_nodo:
+                    nodo.izquierdo = None
+                    return
+                cola.append(nodo.izquierdo)
+
     def calcular_posiciones(self, ancho_lienzo):
         if self.raiz is not None:
             self._calcular_coordenadas(self.raiz, 0, ancho_lienzo / 2, 50, ancho_lienzo / 4, 80)
@@ -63,6 +98,28 @@ class ArbolBST(ArbolBinario):
             else:
                 self._insertar_recursivo(nodo.derecho, valor)
 
+    def eliminar(self, valor):
+        self.raiz = self._eliminar_recursivo(self.raiz, valor)
+
+    def _eliminar_recursivo(self, nodo, valor):
+        if not nodo: return nodo
+        if valor < nodo.valor:
+            nodo.izquierdo = self._eliminar_recursivo(nodo.izquierdo, valor)
+        elif valor > nodo.valor:
+            nodo.derecho = self._eliminar_recursivo(nodo.derecho, valor)
+        else:
+            if not nodo.izquierdo: return nodo.derecho
+            if not nodo.derecho: return nodo.izquierdo
+            temp = self._min_valor_nodo(nodo.derecho)
+            nodo.valor = temp.valor
+            nodo.derecho = self._eliminar_recursivo(nodo.derecho, temp.valor)
+        return nodo
+
+    def _min_valor_nodo(self, nodo):
+        actual = nodo
+        while actual.izquierdo: actual = actual.izquierdo
+        return actual
+
 class ArbolAVL(ArbolBST):
     def insertar(self, valor):
         super().insertar(valor)
@@ -84,6 +141,13 @@ def main(page: ft.Page):
                 dibujar_arbol_en_lienzo(nodo.derecho)
             lienzo.shapes.append(cv.Circle(nodo.x, nodo.y, 20, paint=ft.Paint(color=ft.Colors.BLUE_700)))
             lienzo.shapes.append(cv.Text(nodo.x - 10, nodo.y - 10, str(nodo.valor), style=ft.TextStyle(size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)))
+
+    def actualizar_vista():
+        lienzo.shapes.clear()
+        if mi_arbol.raiz:
+            mi_arbol.calcular_posiciones(lienzo.width)
+            dibujar_arbol_en_lienzo(mi_arbol.raiz)
+        page.update()
 
     def cambiar_tipo_arbol(e):
         nonlocal mi_arbol
@@ -109,6 +173,15 @@ def main(page: ft.Page):
             page.update()
         except ValueError:
             pass
+    async def btn_eliminar_click(e):
+        try:
+            valor = int(txt_valor.value)
+            mi_arbol.eliminar(valor)
+            txt_valor.value = ""
+            actualizar_vista()
+            await txt_valor.focus()
+        except ValueError:
+            pass
     selector_arbol = ft.Dropdown(
         label="Tipo de Árbol",
         options=[ft.dropdown.Option("Binario"), ft.dropdown.Option("BST"), ft.dropdown.Option("AVL"),],
@@ -117,7 +190,8 @@ def main(page: ft.Page):
         on_select=cambiar_tipo_arbol)
     txt_valor = ft.TextField(label="Valor del Nodo", width=180)
     btn_insertar = ft.Button("Insertar", on_click=btn_insertar_click, width=180)
-    panel_control = ft.Column([ft.Text("Controles", size=20, weight=ft.FontWeight.BOLD), selector_arbol, txt_valor, btn_insertar], width=200)
+    btn_eliminar = ft.Button("Eliminar", on_click=btn_eliminar_click, width=180)
+    panel_control = ft.Column([ft.Text("Controles", size=20, weight=ft.FontWeight.BOLD), selector_arbol, txt_valor, btn_insertar, btn_eliminar], width=200)
     page.add(ft.Row([panel_control,ft.Container(content=lienzo, bgcolor=ft.Colors.BLACK87, border_radius=10, expand=True)], expand=True))
 
 ft.run(main)
