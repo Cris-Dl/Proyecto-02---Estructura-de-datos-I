@@ -39,50 +39,27 @@ class ArbolBinario:
         if nodo is not None:
             nodo.x = x
             nodo.y = y
-            self._calcular_coordenadas(nodo.izquierdo, nivel + 1, x - desplazamiento, y + espaciado_y, desplazamiento / 2, espaciado_y) # Hijo izquierdo: se mueve a la izquierda (-desplazamiento)
-            self._calcular_coordenadas(nodo.derecho, nivel + 1, x + desplazamiento, y + espaciado_y, desplazamiento / 2, espaciado_y)             # Hijo derecho: se mueve a la derecha (+desplazamiento)
+            self._calcular_coordenadas(nodo.izquierdo, nivel + 1, x - desplazamiento, y + espaciado_y, desplazamiento / 2, espaciado_y) # Hijo izquierdo: se mueve a la izquierda
+            self._calcular_coordenadas(nodo.derecho, nivel + 1, x + desplazamiento, y + espaciado_y, desplazamiento / 2, espaciado_y) # Hijo derecho: se mueve a la derecha
 
 #Interfaz
 def main(page: ft.Page):
     page.title = "Visualizador de Árboles - Proyecto 2"
     page.theme_mode = ft.ThemeMode.DARK
     page.padding = 20
-
     mi_arbol = ArbolBinario()
-
-    # Cambiamos ft.canvas.Canvas por cv.Canvas
-    lienzo = cv.Canvas(
-        width=800,
-        height=600,
-        expand=True
-    )
+    lienzo = cv.Canvas(width=800, height=600, expand=True)
 
     def dibujar_arbol_en_lienzo(nodo):
         if nodo is not None:
             if nodo.izquierdo:
-                lienzo.shapes.append(
-                    # Cambiamos ft.canvas.Line por cv.Line
-                    cv.Line(nodo.x, nodo.y, nodo.izquierdo.x, nodo.izquierdo.y,
-                            paint=ft.Paint(stroke_width=2, color=ft.Colors.WHITE54))
-                )
+                lienzo.shapes.append(cv.Line(nodo.x, nodo.y, nodo.izquierdo.x, nodo.izquierdo.y, paint=ft.Paint(stroke_width=2, color=ft.Colors.WHITE54)))
                 dibujar_arbol_en_lienzo(nodo.izquierdo)
-
             if nodo.derecho:
-                lienzo.shapes.append(
-                    cv.Line(nodo.x, nodo.y, nodo.derecho.x, nodo.derecho.y,
-                            paint=ft.Paint(stroke_width=2, color=ft.Colors.WHITE54))
-                )
+                lienzo.shapes.append(cv.Line(nodo.x, nodo.y, nodo.derecho.x, nodo.derecho.y, paint=ft.Paint(stroke_width=2, color=ft.Colors.WHITE54)))
                 dibujar_arbol_en_lienzo(nodo.derecho)
-
-            lienzo.shapes.append(
-                # Cambiamos ft.canvas.Circle por cv.Circle
-                cv.Circle(nodo.x, nodo.y, 20, paint=ft.Paint(color=ft.Colors.BLUE_700))
-            )
-            lienzo.shapes.append(
-                # Corrección en las líneas 84-86:
-                cv.Text(nodo.x - 10, nodo.y - 10, str(nodo.valor),  # <-- Aquí agregamos el texto que se va a mostrar
-                        style=ft.TextStyle(size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE))
-            )
+            lienzo.shapes.append(cv.Circle(nodo.x, nodo.y, 20, paint=ft.Paint(color=ft.Colors.BLUE_700)))
+            lienzo.shapes.append(cv.Text(nodo.x - 10, nodo.y - 10, str(nodo.valor), style=ft.TextStyle(size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)))
 
     async def btn_insertar_click(e):
         try:
@@ -90,30 +67,15 @@ def main(page: ft.Page):
             mi_arbol.insertar(valor)
             txt_valor.value = ""
             await txt_valor.focus()
-
             mi_arbol.calcular_posiciones(lienzo.width)
             lienzo.shapes.clear()
             dibujar_arbol_en_lienzo(mi_arbol.raiz)
             page.update()
-
         except ValueError:
             pass
-
     txt_valor = ft.TextField(label="Valor del Nodo", width=150)
     btn_insertar = ft.Button("Insertar", on_click=btn_insertar_click)
-    panel_control = ft.Column([
-        ft.Text("Controles", size=20, weight=ft.FontWeight.BOLD),
-        txt_valor,
-        btn_insertar
-    ], width=200)
+    panel_control = ft.Column([ft.Text("Controles", size=20, weight=ft.FontWeight.BOLD), txt_valor, btn_insertar], width=200)
+    page.add(ft.Row([panel_control, ft.Container(content=lienzo, bgcolor=ft.Colors.BLACK87, border_radius=10, expand=True)], expand=True))
 
-    page.add(
-        ft.Row([
-            panel_control,
-            ft.Container(content=lienzo, bgcolor=ft.Colors.BLACK87, border_radius=10, expand=True)
-        ], expand=True)
-    )
-
-
-# Arrancar la aplicación usando el método moderno sugerido en la advertencia
 ft.run(main)
