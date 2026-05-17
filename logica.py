@@ -513,4 +513,5 @@ def main(page: ft.Page):
     panel_recorrido = ft.Container(content=ft.Column([txt_stats, ft.Divider(height=2, color=ft.Colors.WHITE24), txt_recorrido_titulo, ft.Container(content=ft.Column([txt_recorrido_secuencia], scroll=ft.ScrollMode.ADAPTIVE), height=60), txt_paso_actual, ], spacing=4), bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.WHITE), border_radius=8, padding=10, margin=ft.Margin(left=0, top=8, right=0, bottom=0))
     page.add(ft.Row([panel_control, ft.Column([ft.Container(content=lienzo, bgcolor=ft.Colors.BLACK87, border_radius=10, expand=True, width=float("inf")), panel_recorrido, ], expand=True, spacing=10), ], expand=True))
 
+
 ft.run(main)
