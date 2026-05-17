@@ -96,6 +96,37 @@ class ArbolBinario:
             return nodo
         self.raiz = dict_a_nodo(data.get("raiz"))
 
+    def recorrido_preorder(self):
+        resultado = []
+        def _pre(nodo):
+            if nodo:
+                resultado.append(nodo.valor)
+                _pre(nodo.izquierdo)
+                _pre(nodo.derecho)
+        _pre(self.raiz)
+        return resultado
+
+    def recorrido_inorder(self):
+        resultado = []
+        def _in(nodo):
+            if nodo:
+                _in(nodo.izquierdo)
+                resultado.append(nodo.valor)
+                _in(nodo.derecho)
+        _in(self.raiz)
+        return resultado
+
+    def recorrido_postorder(self):
+        resultado = []
+        def _post(nodo):
+            if nodo:
+                _post(nodo.izquierdo)
+                _post(nodo.derecho)
+                resultado.append(nodo.valor)
+        _post(self.raiz)
+        return resultado
+
+
 class ArbolBST(ArbolBinario):
     def insertar(self, valor):
         if self.raiz is None:
@@ -147,6 +178,7 @@ def main(page: ft.Page):
     page.padding = 20
     mi_arbol = ArbolBST()
     lienzo = cv.Canvas(width=800, height=600, expand=True)
+    estado_recorrido = {"secuencia": [],"paso_actual": -1, "activo": False,}
 
     def mostrar_mensaje(mensaje):
         try:
@@ -159,23 +191,113 @@ def main(page: ft.Page):
     def dibujar_arbol_en_lienzo(nodo):
         if nodo is not None:
             if nodo.izquierdo:
-                lienzo.shapes.append(cv.Line(nodo.x, nodo.y, nodo.izquierdo.x, nodo.izquierdo.y, paint=ft.Paint(stroke_width=2, color=ft.Colors.WHITE54)))
+                lienzo.shapes.append(cv.Line(nodo.x, nodo.y, nodo.izquierdo.x, nodo.izquierdo.y,paint=ft.Paint(stroke_width=2, color=ft.Colors.WHITE54)))
                 dibujar_arbol_en_lienzo(nodo.izquierdo)
             if nodo.derecho:
                 lienzo.shapes.append(cv.Line(nodo.x, nodo.y, nodo.derecho.x, nodo.derecho.y, paint=ft.Paint(stroke_width=2, color=ft.Colors.WHITE54)))
                 dibujar_arbol_en_lienzo(nodo.derecho)
-            lienzo.shapes.append(cv.Circle(nodo.x, nodo.y, 20, paint=ft.Paint(color=ft.Colors.BLUE_700)))
-            lienzo.shapes.append(cv.Text(nodo.x - 10, nodo.y - 10, str(nodo.valor), style=ft.TextStyle(size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)))
+
+            paso = estado_recorrido["paso_actual"]
+            secuencia = estado_recorrido["secuencia"]
+            es_actual = (estado_recorrido["activo"] and 0 <= paso < len(secuencia) and secuencia[paso] == nodo.valor)
+            ya_visitado = (estado_recorrido["activo"] and 0 <= paso < len(secuencia) and nodo.valor in secuencia[:paso])
+
+            if es_actual:
+                lienzo.shapes.append(cv.Circle(nodo.x, nodo.y, 26,paint=ft.Paint(color=ft.Colors.WHITE_70)))
+                lienzo.shapes.append(cv.Circle(nodo.x, nodo.y, 22,paint=ft.Paint(color=ft.Colors.GREEN_600)))
+            elif ya_visitado:lienzo.shapes.append(cv.Circle(nodo.x, nodo.y, 20,paint=ft.Paint(color=ft.Colors.GREEN_900)))
+            else:
+                lienzo.shapes.append(cv.Circle(nodo.x, nodo.y, 20,paint=ft.Paint(color=ft.Colors.BLUE_700)))
+            lienzo.shapes.append(cv.Text(nodo.x - 10, nodo.y - 10, str(nodo.valor),style=ft.TextStyle(size=16, weight=ft.FontWeight.BOLD,color=ft.Colors.WHITE)))
 
     def actualizar_vista():
         lienzo.shapes.clear()
         if mi_arbol.raiz:
             mi_arbol.calcular_posiciones(lienzo.width)
             dibujar_arbol_en_lienzo(mi_arbol.raiz)
+        _actualizar_panel_recorrido()
         page.update()
+
+    txt_recorrido_titulo = ft.Text("", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_300)
+    txt_recorrido_secuencia = ft.Text("", size=20, color=ft.Colors.WHITE70)
+    txt_paso_actual = ft.Text("", size=20, color=ft.Colors.GREEN_400, weight=ft.FontWeight.BOLD)
+
+    def _actualizar_panel_recorrido():
+        if not estado_recorrido["activo"]:
+            txt_recorrido_titulo.value = ""
+            txt_recorrido_secuencia.value = ""
+            txt_paso_actual.value = ""
+            btn_siguiente.disabled = True
+            btn_detener.disabled = True
+        else:
+            paso = estado_recorrido["paso_actual"]
+            sec = estado_recorrido["secuencia"]
+            total = len(sec)
+            partes = []
+            for i, v in enumerate(sec):
+                if i < paso:
+                    partes.append(f"[{v}]")
+                elif i == paso:
+                    partes.append(f" {v} ")
+                else:
+                    partes.append(str(v))
+            txt_recorrido_secuencia.value = "  →  ".join(partes)
+
+            if 0 <= paso < total:
+                txt_paso_actual.value = f"Paso {paso + 1} / {total}  —  Nodo actual: {sec[paso]}"
+            elif paso >= total:
+                txt_paso_actual.value = f"Recorrido completo  ({total} nodos visitados)"
+                txt_recorrido_secuencia.value = "  →  ".join(f"[{v}]" for v in sec)
+
+            btn_siguiente.disabled = (paso >= total - 1)
+            btn_detener.disabled = False
+
+    def iniciar_recorrido(tipo: str):
+        if mi_arbol.raiz is None:
+            mostrar_mensaje("El árbol está vacío. Inserta nodos primero.")
+            return
+        if tipo == "Preorder":
+            sec = mi_arbol.recorrido_preorder()
+        elif tipo == "Inorder":
+            sec = mi_arbol.recorrido_inorder()
+        else:
+            sec = mi_arbol.recorrido_postorder()
+
+        estado_recorrido["secuencia"] = sec
+        estado_recorrido["paso_actual"] = 0
+        estado_recorrido["activo"] = True
+        txt_recorrido_titulo.value = f"Recorrido {tipo}:"
+        actualizar_vista()
+
+    def btn_preorder_click(e):
+        iniciar_recorrido("Pre-orden")
+
+    def btn_inorder_click(e):
+        iniciar_recorrido("In-orden")
+
+    def btn_postorder_click(e):
+        iniciar_recorrido("Post-orden")
+
+    def btn_siguiente_click(e):
+        if not estado_recorrido["activo"]: return
+        paso = estado_recorrido["paso_actual"]
+        total = len(estado_recorrido["secuencia"])
+        if paso < total - 1:
+            estado_recorrido["paso_actual"] += 1
+        actualizar_vista()
+
+    def btn_detener_click(e):
+        estado_recorrido["activo"] = False
+        estado_recorrido["secuencia"] = []
+        estado_recorrido["paso_actual"] = -1
+        actualizar_vista()
 
     def cambiar_tipo_arbol(e):
         nonlocal mi_arbol
+        estado_recorrido["activo"] = False
+        estado_recorrido["secuencia"] = []
+        estado_recorrido["paso_actual"] = -1
+
         tipo = selector_arbol.value
         if tipo == "Binario":
             mi_arbol = ArbolBinario()
@@ -192,7 +314,10 @@ def main(page: ft.Page):
             valor = int(txt_valor.value)
             mi_arbol.insertar(valor)
             txt_valor.value = ""
-            await txt_valor.focus()
+            if estado_recorrido["activo"]:
+                estado_recorrido["activo"] = False
+                estado_recorrido["secuencia"] = []
+                estado_recorrido["paso_actual"] = -1
             actualizar_vista()
         except ValueError:
             mostrar_mensaje("Por favor, ingresa un número válido.")
@@ -204,6 +329,10 @@ def main(page: ft.Page):
             mi_arbol.eliminar(valor)
             txt_valor.value = ""
             await txt_valor.focus()
+            if estado_recorrido["activo"]:
+                estado_recorrido["activo"] = False
+                estado_recorrido["secuencia"] = []
+                estado_recorrido["paso_actual"] = -1
             actualizar_vista()
         except ValueError:
             mostrar_mensaje("Por favor, ingresa un número válido.")
@@ -242,10 +371,14 @@ def main(page: ft.Page):
                 selector_arbol.value = "AVL"
             mi_arbol.cargar_desde_dict(datos)
             selector_arbol.update()
+            estado_recorrido["activo"] = False
+            estado_recorrido["secuencia"] = []
+            estado_recorrido["paso_actual"] = -1
             actualizar_vista()
             mostrar_mensaje("Árbol cargado exitosamente.")
         else:
             mostrar_mensaje("Carga cancelada.")
+
     selector_arbol = ft.Dropdown(
         label="Tipo de Árbol",
         options=[ft.dropdown.Option("Binario"), ft.dropdown.Option("BST"), ft.dropdown.Option("AVL")],
@@ -257,7 +390,25 @@ def main(page: ft.Page):
     btn_eliminar = ft.Button("Eliminar", on_click=btn_eliminar_click, width=180)
     btn_guardar = ft.Button("Guardar Árbol", on_click=btn_guardar_click, width=180, icon="save") # type: ignore
     btn_cargar = ft.Button("Cargar Árbol", on_click=btn_cargar_click, width=180, icon="upload_file") # type: ignore
-    panel_control = ft.Column([ft.Text("Controles", size=20, weight=ft.FontWeight.BOLD), selector_arbol, txt_valor, btn_insertar, btn_eliminar, ft.Divider(), btn_guardar, btn_cargar], width=200)
-    page.add(ft.Row([panel_control, ft.Container(content=lienzo, bgcolor=ft.Colors.BLACK87, border_radius=10, expand=True)], expand=True))
+
+    btn_preorder  = ft.Button("Pre-orden",  on_click=btn_preorder_click,  width=180,)
+    btn_inorder   = ft.Button("In-orden",   on_click=btn_inorder_click,   width=180,)
+    btn_postorder = ft.Button("Pos-torden", on_click=btn_postorder_click, width=180,)
+    btn_siguiente = ft.Button("Siguiente", on_click=btn_siguiente_click, width=180,disabled=True)
+    btn_detener   = ft.Button("Detener",   on_click=btn_detener_click,   width=180,disabled=True)
+
+    panel_control = ft.Column([
+        ft.Text("Controles", size=20, weight=ft.FontWeight.BOLD),
+        selector_arbol,
+        txt_valor,
+        btn_insertar,
+        btn_eliminar,
+        ft.Divider(),
+        btn_guardar,
+        btn_cargar,
+        ft.Divider(),
+        ft.Text("Recorridos", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_200),btn_preorder,btn_inorder,btn_postorder,ft.Divider(),btn_siguiente,btn_detener,], width=200)
+    panel_recorrido = ft.Container(content=ft.Column([txt_recorrido_titulo,ft.Container(content=ft.Column([txt_recorrido_secuencia], scroll=ft.ScrollMode.ADAPTIVE),height=70,),txt_paso_actual,], spacing=4),bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.WHITE),border_radius=8,padding=10,margin=ft.Margin(left=0, top=8, right=0, bottom=0),visible=True,)
+    page.add(ft.Row([panel_control,ft.Column([ft.Container(content=lienzo, bgcolor=ft.Colors.BLACK87, border_radius=10, expand=True),panel_recorrido,], expand=True, spacing=0),], expand=True))
 
 ft.run(main)
