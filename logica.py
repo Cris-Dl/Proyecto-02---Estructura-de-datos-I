@@ -21,70 +21,85 @@ class ArbolBinario:
             self.raiz = Nodo(valor)
             camino.append(valor)
             return camino
-        cola = [self.raiz]
-        while cola:
-            nodo = cola.pop(0)
-            camino.append(nodo.valor)
-            if nodo.izquierdo is None:
-                nodo.izquierdo = Nodo(valor)
-                camino.append(valor)
-                break
-            else:
-                cola.append(nodo.izquierdo)
-
-            if nodo.derecho is None:
-                nodo.derecho = Nodo(valor)
-                camino.append(valor)
-                break
-            else:
-                cola.append(nodo.derecho)
+        self._insertar_recursivo([self.raiz], valor, camino)
         return camino
 
+    def _insertar_recursivo(self, cola, valor, camino):
+        if not cola:
+            return
+        nodo = cola.pop(0)
+        camino.append(nodo.valor)
+        if nodo.izquierdo is None:
+            nodo.izquierdo = Nodo(valor)
+            camino.append(valor)
+            return
+        else:
+            cola.append(nodo.izquierdo)
+        if nodo.derecho is None:
+            nodo.derecho = Nodo(valor)
+            camino.append(valor)
+            return
+        else:
+            cola.append(nodo.derecho)
+        self._insertar_recursivo(cola, valor, camino)
+
     def eliminar(self, valor):
-        if not self.raiz: return
+        if not self.raiz:
+            return
         if self.raiz.valor == valor and not self.raiz.izquierdo and not self.raiz.derecho:
             self.raiz = None
             return
-        nodo_a_eliminar = None
-        temp = None
-        cola = [self.raiz]
-        while cola:
-            temp = cola.pop(0)
-            if temp.valor == valor: nodo_a_eliminar = temp
-            if temp.izquierdo: cola.append(temp.izquierdo)
-            if temp.derecho: cola.append(temp.derecho)
-        if nodo_a_eliminar:
+        nodo_a_eliminar, temp = self._buscar_nodos_eliminar([self.raiz], valor, None, None)
+        if nodo_a_eliminar and temp:
             ultimo_valor = temp.valor
-            self._eliminar_ultimo(temp)
+            self._eliminar_ultimo_recursivo([self.raiz], temp)
             nodo_a_eliminar.valor = ultimo_valor
 
-    def _eliminar_ultimo(self, ultimo_nodo):
-        cola = [self.raiz]
-        while cola:
-            nodo = cola.pop(0)
-            if nodo is ultimo_nodo: return
-            if nodo.derecho:
-                if nodo.derecho is ultimo_nodo:
-                    nodo.derecho = None
-                    return
-                cola.append(nodo.derecho)
-            if nodo.izquierdo:
-                if nodo.izquierdo is ultimo_nodo:
-                    nodo.izquierdo = None
-                    return
-                cola.append(nodo.izquierdo)
+    def _buscar_nodos_eliminar(self, cola, valor, nodo_a_eliminar, temp):
+        if not cola:
+            return nodo_a_eliminar, temp
+        actual = cola.pop(0)
+        if actual.valor == valor:
+            nodo_a_eliminar = actual
+        temp = actual
+        if actual.izquierdo: cola.append(actual.izquierdo)
+        if actual.derecho: cola.append(actual.derecho)
+        return self._buscar_nodos_eliminar(cola, valor, nodo_a_eliminar, temp)
+
+    def _eliminar_ultimo_recursivo(self, cola, ultimo_nodo):
+        if not cola:
+            return
+        nodo = cola.pop(0)
+        if nodo is ultimo_nodo:
+            return
+        if nodo.derecho:
+            if nodo.derecho is ultimo_nodo:
+                nodo.derecho = None
+                return
+            cola.append(nodo.derecho)
+        if nodo.izquierdo:
+            if nodo.izquierdo is ultimo_nodo:
+                nodo.izquierdo = None
+                return
+            cola.append(nodo.izquierdo)
+        self._eliminar_ultimo_recursivo(cola, ultimo_nodo)
 
     def buscar(self, valor):
         camino = []
-        if not self.raiz: return camino, False
-        cola = [self.raiz]
-        while cola:
-            nodo = cola.pop(0)
-            camino.append(nodo.valor)
-            if nodo.valor == valor: return camino, True
-            if nodo.izquierdo: cola.append(nodo.izquierdo)
-            if nodo.derecho: cola.append(nodo.derecho)
-        return camino, False
+        encontrado = self._buscar_recursivo(self.raiz, valor, camino)
+        return camino, encontrado
+
+    def _buscar_recursivo(self, nodo, valor, camino):
+        if not nodo:
+            return False
+        camino.append(nodo.valor)
+        if nodo.valor == valor:
+            return True
+        if self._buscar_recursivo(nodo.izquierdo, valor, camino):
+            return True
+        if self._buscar_recursivo(nodo.derecho, valor, camino):
+            return True
+        return False
 
     def calcular_posiciones(self, ancho_lienzo):
         if self.raiz is not None:
@@ -497,6 +512,7 @@ def main(page: ft.Page):
             selector_arbol.update()
             btn_detener_click(None)
             mostrar_mensaje("Árbol cargado exitosamente.")
+
     selector_arbol = ft.Dropdown(label="Tipo de Árbol", options=[ft.dropdown.Option("Binario"), ft.dropdown.Option("BST"), ft.dropdown.Option("AVL")], value="BST", width=180, on_select=cambiar_tipo_arbol)
     txt_valor = ft.TextField(label="Valor del Nodo", width=180)
     btn_insertar = ft.Button("Insertar", on_click=btn_insertar_click, width=180, icon=ft.Icons.ADD)
@@ -512,6 +528,5 @@ def main(page: ft.Page):
     panel_control = ft.Column([ft.Text("Controles", size=20, weight=ft.FontWeight.BOLD), selector_arbol, txt_valor, btn_insertar, btn_buscar, btn_eliminar, ft.Divider(), btn_guardar, btn_cargar, ft.Divider(), ft.Text("Recorridos", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_200), btn_preorder, btn_inorder, btn_postorder, ft.Divider(), btn_siguiente, btn_detener, ], width=200, scroll=ft.ScrollMode.AUTO)
     panel_recorrido = ft.Container(content=ft.Column([txt_stats, ft.Divider(height=2, color=ft.Colors.WHITE24), txt_recorrido_titulo, ft.Container(content=ft.Column([txt_recorrido_secuencia], scroll=ft.ScrollMode.ADAPTIVE), height=60), txt_paso_actual, ], spacing=4), bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.WHITE), border_radius=8, padding=10, margin=ft.Margin(left=0, top=8, right=0, bottom=0))
     page.add(ft.Row([panel_control, ft.Column([ft.Container(content=lienzo, bgcolor=ft.Colors.BLACK87, border_radius=10, expand=True, width=float("inf")), panel_recorrido, ], expand=True, spacing=10), ], expand=True))
-
 
 ft.run(main)
