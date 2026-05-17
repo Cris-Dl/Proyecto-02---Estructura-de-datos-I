@@ -1,5 +1,7 @@
 import flet as ft
 import flet.canvas as cv
+import json
+
 class Nodo:
     def __init__(self, valor):
         self.valor = valor
@@ -37,7 +39,6 @@ class ArbolBinario:
         if self.raiz.valor == valor and not self.raiz.izquierdo and not self.raiz.derecho:
             self.raiz = None
             return
-
         nodo_a_eliminar = None
         temp = None
         cola = [self.raiz]
@@ -46,7 +47,6 @@ class ArbolBinario:
             if temp.valor == valor: nodo_a_eliminar = temp
             if temp.izquierdo: cola.append(temp.izquierdo)
             if temp.derecho: cola.append(temp.derecho)
-
         if nodo_a_eliminar:
             ultimo_valor = temp.valor
             self._eliminar_ultimo(temp)
@@ -78,6 +78,23 @@ class ArbolBinario:
             nodo.y = y
             self._calcular_coordenadas(nodo.izquierdo, nivel + 1, x - desplazamiento, y + espaciado_y, desplazamiento / 2, espaciado_y)
             self._calcular_coordenadas(nodo.derecho, nivel + 1, x + desplazamiento, y + espaciado_y, desplazamiento / 2, espaciado_y)
+
+    def serializar(self):
+        def nodo_a_dict(nodo):
+            if not nodo:
+                return None
+            return {"valor": nodo.valor, "izquierdo": nodo_a_dict(nodo.izquierdo), "derecho": nodo_a_dict(nodo.derecho)}
+        return {"tipo": self.__class__.__name__, "raiz": nodo_a_dict(self.raiz)}
+
+    def cargar_desde_dict(self, data):
+        def dict_a_nodo(d):
+            if not d:
+                return None
+            nodo = Nodo(d["valor"])
+            nodo.izquierdo = dict_a_nodo(d.get("izquierdo"))
+            nodo.derecho = dict_a_nodo(d.get("derecho"))
+            return nodo
+        self.raiz = dict_a_nodo(data.get("raiz"))
 
 class ArbolBST(ArbolBinario):
     def insertar(self, valor):
@@ -131,6 +148,14 @@ def main(page: ft.Page):
     mi_arbol = ArbolBST()
     lienzo = cv.Canvas(width=800, height=600, expand=True)
 
+    def mostrar_mensaje(mensaje):
+        try:
+            page.open(ft.SnackBar(ft.Text(mensaje)))
+        except AttributeError:
+            page.snack_bar = ft.SnackBar(ft.Text(mensaje))
+            page.snack_bar.open = True
+            page.update()
+
     def dibujar_arbol_en_lienzo(nodo):
         if nodo is not None:
             if nodo.izquierdo:
@@ -162,36 +187,77 @@ def main(page: ft.Page):
         page.update()
 
     async def btn_insertar_click(e):
+        if not txt_valor.value: return
         try:
             valor = int(txt_valor.value)
             mi_arbol.insertar(valor)
             txt_valor.value = ""
             await txt_valor.focus()
-            mi_arbol.calcular_posiciones(lienzo.width)
-            lienzo.shapes.clear()
-            dibujar_arbol_en_lienzo(mi_arbol.raiz)
-            page.update()
+            actualizar_vista()
         except ValueError:
-            pass
+            mostrar_mensaje("Por favor, ingresa un número válido.")
+
     async def btn_eliminar_click(e):
+        if not txt_valor.value: return
         try:
             valor = int(txt_valor.value)
             mi_arbol.eliminar(valor)
             txt_valor.value = ""
-            actualizar_vista()
             await txt_valor.focus()
+            actualizar_vista()
         except ValueError:
-            pass
+            mostrar_mensaje("Por favor, ingresa un número válido.")
+
+    async def btn_guardar_click(e):
+        if mi_arbol.raiz is None:
+            mostrar_mensaje("El árbol está vacío. Inserta nodos antes de guardar.")
+            return
+        ruta = await ft.FilePicker().save_file(dialog_title="Guardar Árbol como...", file_name="mi_arbol_estructurado.json", allowed_extensions=["json"])
+        if ruta:
+            if not ruta.endswith(".json"):
+                ruta += ".json"
+            datos = mi_arbol.serializar()
+            with open(ruta, "w") as f:
+                json.dump(datos, f, indent=4)
+            mostrar_mensaje("Árbol guardado exitosamente.")
+        else:
+            mostrar_mensaje("Guardado cancelado.")
+
+    async def btn_cargar_click(e):
+        nonlocal mi_arbol
+        archivos = await ft.FilePicker().pick_files(dialog_title="Seleccionar Árbol Guardado", allowed_extensions=["json"])
+        if archivos and len(archivos) > 0:
+            ruta = archivos[0].path
+            with open(ruta, "r") as f:
+                datos = json.load(f)
+            tipo = datos.get("tipo", "ArbolBST")
+            if tipo == "ArbolBinario":
+                mi_arbol = ArbolBinario()
+                selector_arbol.value = "Binario"
+            elif tipo == "ArbolBST":
+                mi_arbol = ArbolBST()
+                selector_arbol.value = "BST"
+            elif tipo == "ArbolAVL":
+                mi_arbol = ArbolAVL()
+                selector_arbol.value = "AVL"
+            mi_arbol.cargar_desde_dict(datos)
+            selector_arbol.update()
+            actualizar_vista()
+            mostrar_mensaje("Árbol cargado exitosamente.")
+        else:
+            mostrar_mensaje("Carga cancelada.")
     selector_arbol = ft.Dropdown(
         label="Tipo de Árbol",
-        options=[ft.dropdown.Option("Binario"), ft.dropdown.Option("BST"), ft.dropdown.Option("AVL"),],
+        options=[ft.dropdown.Option("Binario"), ft.dropdown.Option("BST"), ft.dropdown.Option("AVL")],
         value="BST",
         width=180,
         on_select=cambiar_tipo_arbol)
     txt_valor = ft.TextField(label="Valor del Nodo", width=180)
     btn_insertar = ft.Button("Insertar", on_click=btn_insertar_click, width=180)
     btn_eliminar = ft.Button("Eliminar", on_click=btn_eliminar_click, width=180)
-    panel_control = ft.Column([ft.Text("Controles", size=20, weight=ft.FontWeight.BOLD), selector_arbol, txt_valor, btn_insertar, btn_eliminar], width=200)
-    page.add(ft.Row([panel_control,ft.Container(content=lienzo, bgcolor=ft.Colors.BLACK87, border_radius=10, expand=True)], expand=True))
+    btn_guardar = ft.Button("Guardar Árbol", on_click=btn_guardar_click, width=180, icon="save") # type: ignore
+    btn_cargar = ft.Button("Cargar Árbol", on_click=btn_cargar_click, width=180, icon="upload_file") # type: ignore
+    panel_control = ft.Column([ft.Text("Controles", size=20, weight=ft.FontWeight.BOLD), selector_arbol, txt_valor, btn_insertar, btn_eliminar, ft.Divider(), btn_guardar, btn_cargar], width=200)
+    page.add(ft.Row([panel_control, ft.Container(content=lienzo, bgcolor=ft.Colors.BLACK87, border_radius=10, expand=True)], expand=True))
 
 ft.run(main)
